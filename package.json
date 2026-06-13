@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@nbot/flowers",
+  "version": "0.1.0",
+  "description": "Deterministic, dependency-free botanical SVG flowers. One seed, one flower, the same everywhere, forever.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Nicola Bottari",
+  "homepage": "https://github.com/nicolabottari/flowers#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicolabottari/flowers.git"
+  },
+  "bugs": "https://github.com/nicolabottari/flowers/issues",
+  "keywords": [
+    "svg",
+    "generative",
+    "procedural",
+    "deterministic",
+    "flower",
+    "plumeria",
+    "oklch"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "type-check": "tsc",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "prepare": "lefthook install",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "@types/node": "^24.7.0",
+    "lefthook": "^2.1.9",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "lefthook"
+    ]
+  }
+}
