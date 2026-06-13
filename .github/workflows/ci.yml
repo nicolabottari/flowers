@@ -23,7 +23,7 @@ jobs:
       # below do it); a floating ref is a standing supply-chain risk.
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: pnpm
