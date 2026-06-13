@@ -22,7 +22,7 @@ jobs:
       # full commit SHA before the first publish (pinact, or let Dependabot
       # below do it); a floating ref is a standing supply-chain risk.
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
