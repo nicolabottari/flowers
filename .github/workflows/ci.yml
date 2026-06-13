@@ -21,7 +21,7 @@ jobs:
       # Action refs are kept at a major tag for readability. Pin them to a
       # full commit SHA before the first publish (pinact, or let Dependabot
       # below do it); a floating ref is a standing supply-chain risk.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
