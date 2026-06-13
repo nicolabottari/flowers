@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`plumeria/1 vectors > is frozen for {"date":"1991-03-22","seed":"1991-03-22"} 1`] = `"80e186a63cc0b89e"`;
+
+exports[`plumeria/1 vectors > is frozen for {"date":"2000-01-21","seed":"2000-01-21"} 1`] = `"f06f4555f7b777cc"`;
+
+exports[`plumeria/1 vectors > is frozen for {"seed":"2026-06-14","bloom":true} 1`] = `"9c27408ce2c46f33"`;
+
+exports[`plumeria/1 vectors > is frozen for {"seed":"2026-06-14","theme":"dark"} 1`] = `"7cde74f5e58b15a8"`;
+
+exports[`plumeria/1 vectors > is frozen for {"seed":"2026-06-14"} 1`] = `"630d7f7179530b4c"`;
+
+exports[`plumeria/1 vectors > is frozen for {"seed":"hello"} 1`] = `"667626655f8d8a28"`;

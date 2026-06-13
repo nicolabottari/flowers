@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Linting and testing need no secrets. Grant nothing by default; the job
+# below asks only for the read it needs. Note the trigger is
+# `pull_request`, never `pull_request_target`: fork code never runs with
+# write access or with this repo's secrets.
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Action refs are kept at a major tag for readability. Pin them to a
+      # full commit SHA before the first publish (pinact, or let Dependabot
+      # below do it); a floating ref is a standing supply-chain risk.
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build

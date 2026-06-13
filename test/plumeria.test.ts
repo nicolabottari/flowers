@@ -1,0 +1,103 @@
+import { describe, expect, it } from "vitest";
+import { cultivar, plumeria } from "../src/index";
+
+const ids = (svg: string) =>
+  [...svg.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+
+describe("plumeria", () => {
+  const seed = "2026-06-14";
+
+  it("is deterministic for a given seed and theme", () => {
+    expect(plumeria({ seed })).toBe(plumeria({ seed }));
+    expect(plumeria({ seed, theme: "dark" })).toBe(
+      plumeria({ seed, theme: "dark" })
+    );
+  });
+
+  it("changes with the seed", () => {
+    expect(plumeria({ seed })).not.toBe(plumeria({ seed: "another" }));
+  });
+
+  it("keeps the same structure across themes, with different colors", () => {
+    const light = plumeria({ seed });
+    const dark = plumeria({ seed, theme: "dark" });
+    const paths = (svg: string) => svg.split("<path").length;
+
+    expect(light).not.toBe(dark);
+    expect(paths(light)).toBe(paths(dark));
+  });
+
+  it("grows five petals", () => {
+    expect(plumeria({ seed }).match(/<g id="[^"]*g\d"/g)).toHaveLength(5);
+  });
+
+  it("never reuses ids across themes", () => {
+    const light = new Set(ids(plumeria({ seed })));
+    const dark = ids(plumeria({ seed, theme: "dark" }));
+
+    expect(dark.length).toBeGreaterThan(0);
+    expect(dark.some((id) => light.has(id))).toBe(false);
+  });
+
+  it("references only ids it defines", () => {
+    const svg = plumeria({ seed });
+    const defined = new Set(ids(svg));
+    const refs = [...svg.matchAll(/(?:url\(#|href="#)([^")]+)/g)].map(
+      (m) => m[1]
+    );
+
+    expect(refs.length).toBeGreaterThan(0);
+    for (const ref of refs) {
+      expect(defined).toContain(ref);
+    }
+  });
+
+  it("is settled by default and animates only when asked", () => {
+    expect(plumeria({ seed })).not.toContain("@keyframes");
+
+    const blooming = plumeria({ seed, bloom: true });
+    expect(blooming).toContain("@keyframes");
+    expect(blooming).toContain("prefers-reduced-motion");
+  });
+
+  it("produces a self-contained svg document", () => {
+    const svg = plumeria({ seed, size: 240 });
+
+    expect(svg.startsWith("<svg")).toBe(true);
+    expect(svg.endsWith("</svg>")).toBe(true);
+    expect(svg).toContain('width="240"');
+    expect(svg).toContain('viewBox="0 0 480 480"');
+  });
+
+  it("stays numerically sound and reasonably sized", () => {
+    for (let i = 0; i < 60; i++) {
+      const date = new Date(Date.UTC(2026, 0, 1 + i))
+        .toISOString()
+        .slice(0, 10);
+
+      for (const theme of ["light", "dark"] as const) {
+        const svg = plumeria({ bloom: true, date, seed: date, theme });
+
+        expect(svg).not.toMatch(/NaN|Infinity|undefined/);
+        expect(svg.length).toBeLessThan(48_000);
+      }
+    }
+  });
+});
+
+describe("cultivar", () => {
+  const seed = "2026-06-14";
+
+  it("names the same flower plumeria draws", () => {
+    expect(plumeria({ seed })).toContain(`A ${cultivar({ seed })} plumeria`);
+  });
+
+  it("pales under a full moon without changing the cultivar", () => {
+    const full = plumeria({ date: "2000-01-21", seed });
+    const ordinary = plumeria({ date: "2000-01-13", seed });
+
+    expect(full).not.toBe(ordinary);
+    expect(full).toContain(`A ${cultivar({ seed })} plumeria`);
+    expect(ordinary).toContain(`A ${cultivar({ seed })} plumeria`);
+  });
+});

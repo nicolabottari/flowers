@@ -1,0 +1,64 @@
+{
+  "name": "@nbot/flowers",
+  "version": "0.1.0",
+  "description": "Deterministic, dependency-free botanical SVG flowers. One seed, one flower, the same everywhere, forever.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Nicola Bottari",
+  "homepage": "https://github.com/nicolabottari/flowers#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicolabottari/flowers.git"
+  },
+  "bugs": "https://github.com/nicolabottari/flowers/issues",
+  "keywords": [
+    "svg",
+    "generative",
+    "procedural",
+    "deterministic",
+    "flower",
+    "plumeria",
+    "oklch"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
