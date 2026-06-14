@@ -31,15 +31,19 @@ const name = cultivar({ seed: "2026-06-14" }); // "pink pearl", "rainbow × gold
 
 **Color** (`color.ts`). All mixing happens in OKLCH with shortest-arc hue, so a gold-to-pink ramp passes through warm orange instead of grey. Gradient stops are sampled along OKLCH geodesics and converted to hex only at the edge of the system, gamut-mapped by walking chroma down.
 
-**No outlines.** Petals separate the way photographs do: a double contact shadow under every covering edge (crisp line opening into penumbra), a thin rim of light on the waxy edge, a directional light across the corolla. A radial mask fades the shadows near the hub, so the center stays lit instead of falling in its own shade.
+**No outlines.** Petals separate the way photographs do: a double contact shadow under every covering edge (crisp line opening into penumbra), a thin rim of light on the waxy edge, and one key light from the top left, cast as a per-petal gradient so the corolla reads as a rounded dome instead of five flat cut-outs. Pale cultivars, which would melt into light paper, also take a soft inner shadow along the free edge. A radial mask fades the contact shadows near the hub, so the center stays lit instead of falling in its own shade.
 
-**The throat.** Two registers: a steady shared core, plus a flame ellipse per petal so the gold reads as a star, its edge torn into tongues by per-petal turbulence displacement. Vein fans die into the body before the rim; an anisotropic grain runs lengthwise like real petal striations.
+**The throat.** Two registers: a steady shared core, plus a flame ellipse per petal so the gold reads as a star, its edge torn into tongues by per-petal turbulence displacement. A warm glow pools at the hub and bleeds up each petal, so the heart reads lit from within. Vein fans die into the body before the rim, fine radial fibers weave an iris-like texture, and an anisotropic grain runs lengthwise like real petal striations.
+
+**The grade.** A final pass over the whole flower, the way a phone's auto mode balances a shot: a gentle contrast curve plus a touch of saturation and luminance, so the corolla reads with depth instead of flat and pale. It is softened on pale cultivars, whose near-white petals a full lift would blow into the background.
 
 **The moon** (`moon.ts`). Pass a `date` and the moon of that day is arithmetic on it (one known new moon and the synodic month). Full-moon blooms come out paler and silvery.
 
 **Bloom.** The SVG can carry its own entrance: petals unfurl around the hub with a staggered fade, honoring `prefers-reduced-motion`. It is opt-in (`bloom: true`); the default is the settled flower, which is what static rasterizers and favicons want. The petal group ids (`<uid>g0` to `<uid>g4`) are exposed, so a different entrance can be driven from outside.
 
-**Theming.** Light and dark are the same structure, re-toned: warm paper washes pale petals out by simultaneous contrast, so the light theme gets the chroma push. Element ids embed the theme, so two flowers of the same seed can share one document and `url(#...)` still resolves the right one.
+**Glow.** By default the flower carries no backdrop, since a library should not assume the surface it lands on. Pass `glow: true` and it rests on a soft ground: a warm shade on paper, a faint throat-colored halo on dark. Presentation is opt-in, like the animation.
+
+**Theming.** Light and dark are the same geometry, re-toned. Both themes lift chroma so the colors read vivid, the light theme more, since warm paper washes pale petals out by simultaneous contrast. Element ids embed the theme, so two flowers of the same seed can share one document and `url(#...)` still resolves the right one.
 
 ## API
 
@@ -53,10 +57,11 @@ cultivar(options): string   // the name of the flower that seed grows
 | `seed` | `string` |  | identity; same seed, same flower |
 | `date` | `string?` | undefined | ISO day; the moon of that day pales the bloom |
 | `bloom` | `boolean?` | `false` | `true` adds the opening animation |
+| `glow` | `boolean?` | `false` | `true` rests the flower on a soft ground glow |
 | `theme` | `"light" \| "dark"` | `"light"` | re-tones, never restructures |
 | `size` | `number?` | `480` | width/height attributes; viewBox is always 480 |
 
-The contract, locked by tests: deterministic per `(seed, theme)`; structure identical across themes; ids disjoint across themes; every `url(#...)` reference defined in-document; numerically sound and comfortably under 40 KB.
+The contract, locked by tests: deterministic per `(seed, theme)`; structure identical across themes; ids disjoint across themes; every `url(#...)` reference defined in-document; numerically sound and comfortably under 48 KB.
 
 ## Layout
 

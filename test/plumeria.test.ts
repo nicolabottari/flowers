@@ -60,6 +60,11 @@ describe("plumeria", () => {
     expect(blooming).toContain("prefers-reduced-motion");
   });
 
+  it("is bare by default and rests on a ground glow only when asked", () => {
+    expect(plumeria({ seed })).not.toContain("ambient");
+    expect(plumeria({ seed, glow: true })).toContain("ambient");
+  });
+
   it("produces a self-contained svg document", () => {
     const svg = plumeria({ seed, size: 240 });
 

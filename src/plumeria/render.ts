@@ -3,12 +3,16 @@
 // draw order; the last one is the first petal redrawn clipped inside the
 // last, with a contact shadow under every covering edge so petals separate
 // without a single drawn outline. Color works in layers, all clipped to
-// the petal: an OKLCH-sampled body ramp, anisotropic petal grain, a throat
-// in two registers (a steady shared core plus a flame ellipse per petal,
-// so the gold reads as a star) torn at the edges by turbulence
-// displacement, vein fans, a blush, a sheen, and a margin tint that frays
-// into the petal. Themes only re-tone the structure; ids embed the theme
-// so a light and a dark flower can share one document.
+// the petal: an OKLCH-sampled body ramp, anisotropic grain, a throat in two
+// registers (a steady shared core plus a flame ellipse per petal, so the
+// gold reads as a star) torn by turbulence displacement, a warm glow rising
+// from the hub, radial iris fibers, vein fans, a blush, a margin tint that
+// frays into the petal, a cool tip shade and a soft inner edge that hold
+// pale petals against light paper, a satin sheen, one key light cast as a
+// per-petal gradient for volume, and a waxy rim. A final grade over the
+// whole flower lifts contrast, saturation, and light. Themes re-tone the
+// structure; ids embed the theme so a light and a dark flower share one
+// document.
 
 import { mixTone, type Tone, toHex } from "../shared/color";
 import { fullMoon } from "../shared/moon";
@@ -32,6 +36,8 @@ export type PlumeriaOptions = {
   date?: string;
   /** true adds the opening animation; the default is the settled flower */
   bloom?: boolean;
+  /** true rests the flower on a soft ground glow; the default is bare */
+  glow?: boolean;
   theme?: Theme;
   size?: number;
 };
@@ -64,6 +70,7 @@ export function plumeria({
   seed,
   date,
   bloom = false,
+  glow = false,
   theme = "light",
   size = VIEWBOX,
 }: PlumeriaOptions): string {
@@ -76,12 +83,12 @@ export function plumeria({
   const { blush, body, margin, throat, veins } = genome;
   const L = genome.form.length;
 
-  // Warm paper washes pale petals out by simultaneous contrast, so the
-  // light theme gets the chroma push; on dark the colors glow unaided
+  // Both themes lift chroma so the colors read vivid; the light theme takes
+  // more, since warm paper washes pale petals out by simultaneous contrast.
   const themed = (t: Tone): Tone =>
     theme === "dark"
-      ? { c: t.c * 1.02, h: t.h, l: t.l * 0.99 }
-      : { c: t.c * 1.07, h: t.h, l: t.l * 0.985 };
+      ? { c: t.c * 1.31, h: t.h, l: t.l * 0.99 }
+      : { c: t.c * 1.46, h: t.h, l: t.l * 0.985 };
   const hex = (t: Tone): string => toHex(themed(t));
 
   // A five-pointed star reaches L upward but only cos(36°)·L ≈ 0.81·L down:
@@ -113,8 +120,33 @@ export function plumeria({
     h: throat.tone.h - 25,
     l: 0.42,
   };
-  const shadowOpacity = 0.26;
-  const rimOpacity = theme === "dark" ? 0.26 : 0.15;
+  // How pale the petal body is, 0..1: pale cultivars (white, yellow, light
+  // pink) take a lighter contact shadow and an inner edge to separate on
+  // paper; saturated bodies keep the full contact shadow their overlaps need.
+  // Broad enough to catch the light pinks, not only the whites.
+  const pale = Math.max(0, Math.min(1, (body.base.l - 0.8) / 0.14));
+  // Pale over pale paper needs only a whisper of cast shadow at the overlaps,
+  // or the petal beneath reads as a heavy crease, but only on light: on dark
+  // the inner edge is off, so the contact shadow is the petals' one boundary
+  // and must stay full, or pale petals merge on black.
+  const shadowOpacity = theme === "dark" ? 0.34 : 0.34 * (1 - 0.42 * pale);
+  const rimOpacity = theme === "dark" ? 0.32 : 0.46;
+  // A white petal's far end is not warm-grey but cool-white-in-shadow: a
+  // faint blue-grey deepening toward the tip pulls the pale lamina off the
+  // warm paper and reads as pure white turning away, not a yellow-green cast.
+  const tipCool: Tone = { c: 0.012, h: 248, l: body.tip.l - 0.08 };
+  const tipShadeOp = pale * (theme === "dark" ? 0.15 : 0.28);
+  // The luminous throat: a warm near-white glow pooled at the hub, bleeding a
+  // little way up each petal, so the heart reads lit from within.
+  const golaGlow = hex(
+    mixTone(throat.tone, { c: 0.02, h: throat.tone.h, l: 0.98 }, 0.56)
+  );
+  // The auto-grade lifts highlights for pop, but a pale petal is already near
+  // white, so a full lift blows it into the paper and the lit (top-left)
+  // petals vanish. Soften the curve toward pale bodies; saturated ones keep
+  // the full contrast. Pivot held near 0.43 so shadows still deepen.
+  const gradeSlope = 1.2 - 0.15 * pale;
+  const gradeIntercept = -0.43 * (gradeSlope - 1);
   // Low frequency + strong scale tears the throat gradient into long
   // tongues of color instead of a fine shimmer
   const baseFrequency = Math.round(between(rng, 0.008, 0.014) * 1e4) / 1e4;
@@ -134,18 +166,18 @@ export function plumeria({
       ? "#fff"
       : hex(mixTone(throat.tone, { c: 0.02, h: throat.tone.h, l: 0.97 }, 0.45));
 
-  // On paper the flower rests in its own warm shade; on dark it floats on a
-  // faint glow of its throat color instead
-  const groundHex =
-    theme === "dark"
-      ? hex(throat.tone)
-      : toHex(mixTone(body.base, { c: 0.05, h: 55, l: 0.25 }, 0.8));
-  const groundPeak = theme === "dark" ? 0.1 : 0.15;
-  const ambientStops = [
-    stop(0, groundHex, groundPeak),
-    stop(0.7, groundHex, groundPeak * 0.66),
-    stop(1, groundHex, 0),
-  ];
+  // The soft ground the flower rests on, opt-in via `glow`: a warm shade on
+  // paper, a faint throat-colored glow on dark. The default is bare, since a
+  // library should not impose the surface its flower lands on.
+  const ground = glow
+    ? {
+        hex:
+          theme === "dark"
+            ? hex(throat.tone)
+            : toHex(mixTone(body.base, { c: 0.05, h: 55, l: 0.25 }, 0.8)),
+        peak: theme === "dark" ? 0.06 : 0.085,
+      }
+    : null;
 
   const defs: string[] = [
     `<linearGradient id="${id("ramp")}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${fmt(-L)}">${[0, 0.3, 0.55, 0.78, 1].map((t) => stop(t, hex(mixTone(body.base, body.tip, t)))).join("")}</linearGradient>`,
@@ -159,7 +191,9 @@ export function plumeria({
     `<linearGradient id="${id("rayfade")}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${fmt(-L)}">${stop(0, hex(rayTone), 0.95)}${stop(0.55, hex(rayTone), 0.55)}${stop(0.85, hex(rayTone), 0)}</linearGradient>`,
     `<radialGradient id="${id("blush")}">${stop(0, hex(blush.tone), 0.8)}${stop(0.6, hex(blush.tone), 0.35)}${stop(1, hex(blush.tone), 0)}</radialGradient>`,
     `<radialGradient id="${id("tube")}" gradientUnits="userSpaceOnUse" cx="${CENTER}" cy="${fmt(CY)}" r="${fmt(0.1 * L)}">${stop(0, hex({ c: throat.tone.c + 0.04, h: throat.tone.h, l: throat.tone.l - 0.16 }), 1)}${stop(0.35, hex({ c: throat.tone.c + 0.02, h: throat.tone.h, l: throat.tone.l - 0.08 }), 0.7)}${stop(0.6, hex(throat.tone), 0.35)}${stop(0.85, hex(throat.tone), 0.1)}${stop(1, hex(throat.tone), 0)}</radialGradient>`,
-    `<radialGradient id="${id("ambient")}">${ambientStops.join("")}</radialGradient>`,
+    ground
+      ? `<radialGradient id="${id("ambient")}">${stop(0, ground.hex, ground.peak)}${stop(0.7, ground.hex, ground.peak * 0.66)}${stop(1, ground.hex, 0)}</radialGradient>`
+      : "",
     // Contact shadows fade out near the hub: in a real corolla the center
     // glows, it never sits in its own shade
     `<mask id="${id("hubmask")}" maskUnits="userSpaceOnUse" x="${fmt(-1.1 * L)}" y="${fmt(-1.1 * L)}" width="${fmt(2.2 * L)}" height="${fmt(2.2 * L)}"><rect x="${fmt(-1.1 * L)}" y="${fmt(-1.1 * L)}" width="${fmt(2.2 * L)}" height="${fmt(2.2 * L)}" fill="${url("hub")}"/></mask>`,
@@ -167,11 +201,22 @@ export function plumeria({
     `<filter id="${id("near")}" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="2.5"/></filter>`,
     `<filter id="${id("fine")}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1"/></filter>`,
     `<filter id="${id("contact")}" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="6"/></filter>`,
-    `<radialGradient id="${id("sheen")}">${stop(0, "#fff", 0.5)}${stop(0.7, "#fff", 0.18)}${stop(1, "#fff", 0)}</radialGradient>`,
+    `<filter id="${id("edge")}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>`,
+    `<radialGradient id="${id("sheen")}">${stop(0, "#fff", 0.66)}${stop(0.42, "#fff", 0.3)}${stop(0.76, "#fff", 0.08)}${stop(1, "#fff", 0)}</radialGradient>`,
+    // Cool tip shade, pooling toward the petal end (whites only via opacity)
+    `<linearGradient id="${id("tipshade")}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${fmt(-L)}">${stop(0, toHex(tipCool), 0)}${stop(0.5, toHex(tipCool), 0)}${stop(0.82, toHex(tipCool), tipShadeOp * 0.5)}${stop(1, toHex(tipCool), tipShadeOp)}</linearGradient>`,
+    // Luminous throat: warm near-white glow from the hub, fading up the petal
+    `<radialGradient id="${id("gola")}" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="${fmt(0.55 * L)}">${stop(0, golaGlow, 0.64 + 0.14 * pale)}${stop(0.42, golaGlow, 0.28 + 0.06 * pale)}${stop(0.72, golaGlow, 0.07)}${stop(1, golaGlow, 0)}</radialGradient>`,
     // The iris-fiber field flows under a displacement far gentler than the
     // flame's tear, so fine strokes survive it
     `<filter id="${id("flow")}" x="-15%" y="-15%" width="130%" height="130%"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="2" seed="${flowSeed}"/><feDisplacementMap in="SourceGraphic" scale="12"/></filter>`,
     `<filter id="${id("grain")}" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.09 0.004" numOctaves="2" seed="${intBetween(rng, 1, 999999)}"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.16 0 0 0 -0.03"/><feComposite in2="SourceGraphic" operator="in"/></filter>`,
+    // A final auto-grade on the whole composited flower, the way a phone's
+    // auto mode balances a shot: a gentle S of contrast (shadows deepen, the
+    // highlights ride up so petal ends bloom toward white) and a moderate
+    // saturation lift, so the corolla pops with depth instead of reading flat
+    // and pale even when its whites are bright.
+    `<filter id="${id("grade")}" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="1.1"/><feComponentTransfer><feFuncR type="linear" slope="${fmt(gradeSlope)}" intercept="${fmt(gradeIntercept)}"/><feFuncG type="linear" slope="${fmt(gradeSlope)}" intercept="${fmt(gradeIntercept)}"/><feFuncB type="linear" slope="${fmt(gradeSlope)}" intercept="${fmt(gradeIntercept)}"/></feComponentTransfer><feComponentTransfer><feFuncR type="gamma" amplitude="1" exponent="0.9"/><feFuncG type="gamma" amplitude="1" exponent="0.9"/><feFuncB type="gamma" amplitude="1" exponent="0.9"/></feComponentTransfer></filter>`,
   ];
 
   // Real contact shade is a crisp line opening into penumbra, so every
@@ -196,6 +241,19 @@ export function plumeria({
     `<path id="${id("p")}" d="${petalOutline(form)}"/>`,
     `<clipPath id="${id("c")}"><use ${href("p")}/></clipPath>`
   );
+
+  const tipShadeLayer =
+    tipShadeOp > 0.02 ? `<use ${href("p")} fill="${url("tipshade")}"/>` : "";
+  const gola = `<use ${href("p")} fill="${url("gola")}"/>`;
+  // A soft inner shadow hugging the petal's free edge, so a pale bloom holds
+  // its outline against light paper where the near-white rim cannot. Blurred
+  // and clipped, so only the inner half survives, a shade, not an outline.
+  // Pale cultivars on the light theme only; colored and dark are untouched.
+  const innerEdgeOp = pale * (theme === "dark" ? 0 : 0.26);
+  const innerEdge =
+    innerEdgeOp > 0.02
+      ? `<use ${href("p")} fill="none" stroke="${toHex({ c: 0.016, h: 250, l: body.tip.l - 0.13 })}" stroke-width="14" opacity="${fmt(innerEdgeOp)}" filter="${url("edge")}"/>`
+      : "";
 
   for (let i = 0; i < PETALS; i++) {
     const next = (i + 1) % PETALS;
@@ -235,15 +293,19 @@ export function plumeria({
     // The iris field: fine radial fibers in two registers flowing along the
     // petal, a few wide light beams, and dark crypts near the throat, the
     // eye-like dynamism real petals carry
+    // Pale bodies carry almost no fiber contrast on their own, so the iris
+    // detail vanishes; deepen the dark register and lift the light one on the
+    // whites and pastels to bring the radial weave back, while saturated
+    // bodies keep their gentle grain (their color already reads the texture).
     const fiberDark: Tone = {
       c: body.base.c + 0.015,
       h: body.base.h,
-      l: body.base.l - 0.075,
+      l: body.base.l - (0.075 + 0.05 * pale),
     };
     const fiberLight: Tone = {
       c: Math.max(0.005, body.base.c - 0.005),
       h: body.base.h,
-      l: Math.min(0.98, body.base.l + 0.045),
+      l: Math.min(0.98, body.base.l + 0.045 + 0.03 * pale),
     };
     const crypts = Array.from({ length: 2 }, () => {
       const t = between(rng, 0.14, 0.3);
@@ -252,8 +314,8 @@ export function plumeria({
     }).join("");
     const fibers =
       `<g filter="${url("flow")}">` +
-      `<path d="${veinsPath(form, rng, intBetween(rng, 7, 10), 0.9, 1.04)}" fill="none" stroke="${hex(fiberDark)}" stroke-width="1.1" stroke-linecap="round" opacity="0.15"/>` +
-      `<path d="${veinsPath(form, rng, intBetween(rng, 6, 9), 0.92, 1.08)}" fill="none" stroke="${hex(fiberLight)}" stroke-width="1" stroke-linecap="round" opacity="0.16"/>` +
+      `<path d="${veinsPath(form, rng, intBetween(rng, 7, 10), 0.9, 1.04)}" fill="none" stroke="${hex(fiberDark)}" stroke-width="1.1" stroke-linecap="round" opacity="${fmt(0.15 + 0.1 * pale)}"/>` +
+      `<path d="${veinsPath(form, rng, intBetween(rng, 6, 9), 0.92, 1.08)}" fill="none" stroke="${hex(fiberLight)}" stroke-width="1" stroke-linecap="round" opacity="${fmt(0.16 + 0.07 * pale)}"/>` +
       `<path d="${veinsPath(form, rng, 2, 0.8, 0.5)}" fill="none" stroke="${beamTone}" stroke-width="5.5" stroke-linecap="round" opacity="${beamTone === "#fff" ? "0.055" : "0.09"}"/>` +
       crypts +
       `</g>`;
@@ -286,22 +348,44 @@ export function plumeria({
     const tilt = Math.atan(2 * form.bend * blushT) * (180 / Math.PI);
 
     const facing = Math.cos(((angles[i] - LIGHT_AT) * Math.PI) / 180);
-    const lightOpacity = facing > 0 ? 0.085 * facing : 0.075 * -facing;
-    const light =
-      lightOpacity < 0.008
-        ? ""
-        : `<use ${href("p")} fill="${facing > 0 ? "#fff" : "#000"}" opacity="${fmt(lightOpacity)}"/>`;
+    // Volume: a soft light→shadow gradient per petal, all aligned to the
+    // screen's top-left key light (the petal's own rotation undone), so the
+    // corolla reads as one lit, rounded dome instead of five flat cut-outs.
+    // The half toward the light whitens, the far half dims, the middle keeps
+    // the body color. Petals facing the light get a brighter shoulder; those
+    // turned away get a deeper shadow.
+    const lightAngle = (angles[i] * Math.PI) / 180;
+    const ux = (Math.cos(lightAngle) + Math.sin(lightAngle)) / Math.SQRT2;
+    const uy = (Math.cos(lightAngle) - Math.sin(lightAngle)) / Math.SQRT2;
+    const [vcx, vcy] = midrib(form, 0.45);
+    const vSpan = 0.92 * L;
+    // White point is theme-aware: lower in dark, where a lit tip pops hard
+    // against black, a little higher in light, where warm paper swallows it.
+    // Saturated bodies (carmine) take a touch less, so their tips don't go
+    // chalky.
+    const vHi =
+      ((theme === "dark" ? 0.2 : 0.36) + 0.1 * Math.max(0, facing)) *
+      (1 - 0.6 * pale);
+    const vLo = (0.08 + 0.045 * Math.max(0, -facing)) * (1 - 0.6 * pale);
+    defs.push(
+      `<linearGradient id="${id(`v${i}`)}" gradientUnits="userSpaceOnUse" x1="${fmt(vcx - (ux * vSpan) / 2)}" y1="${fmt(vcy - (uy * vSpan) / 2)}" x2="${fmt(vcx + (ux * vSpan) / 2)}" y2="${fmt(vcy + (uy * vSpan) / 2)}">${stop(0, "#fff", vHi)}${stop(0.42, "#fff", 0)}${stop(0.6, "#000", 0)}${stop(1, "#000", vLo)}</linearGradient>`
+    );
+    const light = `<use ${href("p")} fill="${url(`v${i}`)}"/>`;
 
     const [hx, hy] = midrib(form, 0.55);
-    const sheen = `<ellipse transform="translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(Math.atan(2 * form.bend * 0.55) * (180 / Math.PI))})" rx="${fmt(0.3 * L * between(rng, 0.85, 1.1))}" ry="${fmt(0.16 * L * between(rng, 0.85, 1.1))}" fill="${url("sheen")}" opacity="${fmt(0.07 + 0.12 * Math.max(0, facing) + between(rng, 0, 0.04))}"/>`;
+    // A faint, broad satin, just enough sheen to keep the petal from reading
+    // matte. Kept low and wide so it never pools into a white halo, and no
+    // local catchlight, which read as strange spots stranded on the petals.
+    const sheen = `<ellipse transform="translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(Math.atan(2 * form.bend * 0.55) * (180 / Math.PI))})" rx="${fmt(0.38 * L * between(rng, 0.85, 1.1))}" ry="${fmt(0.22 * L * between(rng, 0.85, 1.1))}" fill="${url("sheen")}" opacity="${fmt((theme === "dark" ? 0.05 : 0.12) + (theme === "dark" ? 0.07 : 0.12) * Math.max(0, facing))}"/>`;
 
     petals.push(
       `<g${anim.petal(i)}>` +
         `<g id="${id(`g${i}`)}" transform="translate(${CENTER} ${fmt(CY)}) rotate(${fmt(angles[i])})" clip-path="${url("c")}">` +
         `<use ${href("p")} fill="${url("ramp")}"/>` +
-        `<use ${href("p")} fill="#000" filter="${url("grain")}" opacity="${theme === "dark" ? 0.3 : 0.4}"/>` +
+        `<use ${href("p")} fill="#000" filter="${url("grain")}" opacity="${fmt((theme === "dark" ? 0.3 : 0.4) * (1 - 0.45 * pale))}"/>` +
         core +
         `<g filter="${url(`f${i}`)}">${flameLayers.join("")}</g>` +
+        gola +
         fibers +
         haloLayer +
         stripeLayer +
@@ -310,10 +394,12 @@ export function plumeria({
         veinLayer +
         billows +
         marginLayer +
+        tipShadeLayer +
         `<ellipse transform="translate(${fmt(bx)} ${fmt(by)}) rotate(${fmt(tilt)})" rx="${fmt(blushRx)}" ry="${fmt(blushRx * between(rng, 0.55, 0.8))}" fill="${url("blush")}" opacity="${fmt(Math.min(1, 0.75 * blush.strength * blushBoost))}"/>` +
         sheen +
-        `<use ${href("p")} fill="none" stroke="${hex(rimTone)}" stroke-width="2.4" opacity="${fmt(rimOpacity + 0.18 * Math.max(0, facing))}"/>` +
         light +
+        innerEdge +
+        `<use ${href("p")} fill="none" stroke="${hex(rimTone)}" stroke-width="2.7" opacity="${fmt(rimOpacity + (theme === "dark" ? 0.24 : 0.32) * Math.max(0, facing))}"/>` +
         "</g></g>"
     );
 
@@ -350,12 +436,13 @@ export function plumeria({
     `<use ${href("g0")}/>` +
     "</g></g>";
 
-  const ambient =
-    theme === "dark"
+  const ambient = ground
+    ? theme === "dark"
       ? `<ellipse cx="${CENTER}" cy="${fmt(CY)}" rx="${fmt(L * 1.18)}" ry="${fmt(L * 1.12)}" fill="${url("ambient")}"${anim.fade}/>`
-      : `<ellipse cx="${CENTER}" cy="${fmt(CY + 10)}" rx="${fmt(L * 0.95)}" ry="${fmt(L * 0.88)}" fill="${url("ambient")}"${anim.fade}/>`;
+      : `<ellipse cx="${CENTER}" cy="${fmt(CY + 10)}" rx="${fmt(L * 0.95)}" ry="${fmt(L * 0.88)}" fill="${url("ambient")}"${anim.fade}/>`
+    : "";
   const tube = `<circle cx="${CENTER}" cy="${fmt(CY)}" r="${fmt(0.1 * L)}" fill="${url("tube")}"${anim.fade}/>`;
   const eye = `<circle cx="${CENTER}" cy="${fmt(CY)}" r="${fmt(between(rng, 3, 4.5))}" fill="${hex(eyeTone)}"${anim.fade}/>`;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEWBOX} ${VIEWBOX}" width="${size}" height="${size}" role="img" aria-label="A ${genome.cultivar} plumeria"><defs>${defs.join("")}</defs>${anim.style}${ambient}${anim.openTag}${petals.join("")}${wedge}${anim.closeTag}${tube}${eye}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEWBOX} ${VIEWBOX}" width="${size}" height="${size}" role="img" aria-label="A ${genome.cultivar} plumeria"><defs>${defs.join("")}</defs>${anim.style}${ambient}<g filter="${url("grade")}">${anim.openTag}${petals.join("")}${wedge}${anim.closeTag}</g>${tube}${eye}</svg>`;
 }
