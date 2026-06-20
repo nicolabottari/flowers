@@ -52,7 +52,7 @@
     "@biomejs/biome": "^2.5.0",
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
-    "@types/node": "^24.7.0",
+    "@types/node": "^26.0.0",
     "lefthook": "^2.1.9",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
